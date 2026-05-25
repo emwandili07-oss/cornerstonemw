@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useState } from "react";
@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, Lock, CreditCard, ShieldCheck } from "lucide-react";
 import { DISTRICTS } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 
 const searchSchema = z.object({
   purpose: z.enum(["rent","sale"]).optional(),
