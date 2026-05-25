@@ -32,7 +32,11 @@ export const Route = createFileRoute("/browse")({
 function BrowsePage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const { user, loading, isAdmin, isLandlord, isApproved, approvalStatus, hasActiveSeekerSub } = useAuth();
   const [maxPrice, setMaxPrice] = useState<number>(search.max ?? 50_000_000);
+
+  // Gate: seekers must be approved + have active subscription to browse
+  const canBrowse = !user || isAdmin || isLandlord || (isApproved && hasActiveSeekerSub);
 
   const update = (patch: Partial<typeof search>) => navigate({ to: "/browse", search: { ...search, ...patch } as any });
 
