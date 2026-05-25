@@ -62,6 +62,36 @@ function BrowsePage() {
     },
   });
 
+  if (user && !loading && !canBrowse) {
+    const needsApproval = approvalStatus !== "approved";
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-16">
+          <div className="max-w-lg mx-auto rounded-2xl bg-card shadow-card border border-border p-8 text-center space-y-4">
+            <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 grid place-items-center">
+              {needsApproval ? <ShieldCheck className="h-7 w-7 text-primary" /> : <Lock className="h-7 w-7 text-primary" />}
+            </div>
+            <h1 className="font-display text-2xl font-bold">
+              {needsApproval ? "Account awaiting approval" : "Subscription required"}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {needsApproval
+                ? "An administrator will review and approve your account shortly. Once approved and your subscription is active, you can start browsing properties."
+                : "Activate a seeker subscription (MWK 5,000 / week or MWK 15,000 / month) to browse and contact landlords."}
+            </p>
+            {!needsApproval && (
+              <Button asChild className="bg-gradient-primary">
+                <Link to="/dashboard/subscription"><CreditCard className="h-4 w-4 mr-2" /> Manage subscription</Link>
+              </Button>
+            )}
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -70,6 +100,7 @@ function BrowsePage() {
           <h1 className="font-display text-3xl font-bold">Browse properties</h1>
           <p className="text-muted-foreground text-sm mt-1">{data?.length ?? 0} listings found</p>
         </div>
+
 
         {/* Filters */}
         <div className="rounded-2xl bg-card shadow-card p-4 mb-8">
