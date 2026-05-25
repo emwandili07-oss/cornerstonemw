@@ -50,7 +50,12 @@ function MyProperties() {
           <h1 className="font-display text-3xl font-bold">My properties</h1>
           <p className="text-muted-foreground">Manage your listings.</p>
         </div>
-        <Button className="bg-gradient-primary" onClick={() => navigate({ to: "/dashboard/properties/new" })}>
+        <Button
+          className="bg-gradient-primary"
+          onClick={() => navigate({ to: "/dashboard/properties/new" })}
+          disabled={!canPublish}
+          title={!canPublish ? "Activate your subscription to upload properties" : undefined}
+        >
           <Plus className="h-4 w-4 mr-2" /> Add property
         </Button>
       </div>
@@ -59,10 +64,11 @@ function MyProperties() {
         <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
           <div className="text-sm">
-            <strong>Your listings are saved as drafts.</strong> They become public after admin approval and an active subscription. <Link className="text-primary font-semibold" to="/dashboard/subscription">Manage subscription →</Link>
+            <strong>Uploads are locked.</strong> You can upload and publish properties once an admin approves your landlord subscription. <Link className="text-primary font-semibold" to="/dashboard/subscription">Manage subscription →</Link>
           </div>
         </div>
       )}
+
 
       <div className="grid gap-4">
         {(props ?? []).map((p: any) => (
