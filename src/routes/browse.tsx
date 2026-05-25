@@ -41,6 +41,7 @@ function BrowsePage() {
   const update = (patch: Partial<typeof search>) => navigate({ to: "/browse", search: { ...search, ...patch } as any });
 
   const { data, isLoading } = useQuery({
+    enabled: canBrowse,
     queryKey: ["browse", search, maxPrice],
     queryFn: async () => {
       let q = supabase
