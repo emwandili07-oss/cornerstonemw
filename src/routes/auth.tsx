@@ -30,8 +30,44 @@ function AuthPage() {
   const [role, setRole] = useState<"seeker"|"landlord">(search.role ?? "seeker");
   const [loginRole, setLoginRole] = useState<"seeker"|"landlord">(search.role ?? "seeker");
   const [busy, setBusy] = useState(false);
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
 
   useEffect(() => { if (user) navigate({ to: "/dashboard" }); }, [user]);
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const password = String(fd.get("password"));
+    const confirmPassword = String(fd.get("confirm_password"));
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setPasswordMismatch(true);
+      toast.error("Passwords do not match");
+      return;
+    }
+    setPasswordMismatch(false);
+
+    setBusy(true);
+    const { error } = await supabase.auth.signUp({
+      email: String(fd.get("email")),
+      password: password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+        data: {
+          full_name: String(fd.get("full_name") ?? ""),
+          phone: String(fd.get("phone") ?? ""),
+          role,
+          business_name: role === "landlord" ? String(fd.get("business_name") ?? "") : undefined,
+        },
+      },
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Account created — your account is now pending admin approval. You'll also need to complete the subscription payment to proceed.");
+    await refresh();
+    navigate({ to: "/dashboard" });
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -51,8 +87,8 @@ function AuthPage() {
 
               <TabsContent value="login">
                 <div className="flex rounded-lg bg-muted p-1 mt-4">
-                  <button type="button" onClick={() => setLoginRole("seeker")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${loginRole==="seeker"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Sign in as Home Seeker</button>
-                  <button type="button" onClick={() => setLoginRole("landlord")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${loginRole==="landlord"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Sign in as Landlord</button>
+                  <button type="button" onClick={() => setLoginRole("seeker")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${loginRole==="seeker"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Home Seeker</button>
+                  <button type="button" onClick={() => setLoginRole("landlord")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${loginRole==="landlord"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Landlord</button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   You are signing in as a <span className="font-semibold text-primary">{loginRole === "seeker" ? "Home Seeker" : "Landlord"}</span>.
@@ -79,32 +115,10 @@ function AuthPage() {
 
               <TabsContent value="signup">
                 <div className="flex rounded-lg bg-muted p-1 mt-4">
-                  <button type="button" onClick={() => setRole("seeker")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${role==="seeker"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>I'm looking</button>
-                  <button type="button" onClick={() => setRole("landlord")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${role==="landlord"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>I'm a landlord</button>
+                  <button type="button" onClick={() => setRole("seeker")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${role==="seeker"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Home Seeker</button>
+                  <button type="button" onClick={() => setRole("landlord")} className={`flex-1 py-2 rounded-md text-sm font-semibold ${role==="landlord"?"bg-card shadow-sm text-primary":"text-muted-foreground"}`}>Landlord</button>
                 </div>
-                <form className="space-y-4 mt-4" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const fd = new FormData(e.currentTarget);
-                  setBusy(true);
-                  const { error } = await supabase.auth.signUp({
-                    email: String(fd.get("email")),
-                    password: String(fd.get("password")),
-                    options: {
-                      emailRedirectTo: `${window.location.origin}/dashboard`,
-                      data: {
-                        full_name: String(fd.get("full_name") ?? ""),
-                        phone: String(fd.get("phone") ?? ""),
-                        role,
-                        business_name: role === "landlord" ? String(fd.get("business_name") ?? "") : undefined,
-                      },
-                    },
-                  });
-                  setBusy(false);
-                  if (error) return toast.error(error.message);
-                  toast.success("Account created — your account is now pending admin approval. You'll also need to complete the subscription payment to proceed.");
-                  await refresh();
-                  navigate({ to: "/dashboard" });
-                }}>
+                <form className="space-y-4 mt-4" onSubmit={handleSignup}>
                   <div><Label>Full name</Label><Input name="full_name" required /></div>
                   <div><Label>Phone</Label><Input name="phone" required placeholder="+265…" /></div>
                   {role === "landlord" && (
@@ -112,6 +126,17 @@ function AuthPage() {
                   )}
                   <div><Label>Email</Label><Input name="email" type="email" required /></div>
                   <div><Label>Password</Label><Input name="password" type="password" required minLength={6} /></div>
+                  <div>
+                    <Label>Confirm Password</Label>
+                    <Input 
+                      name="confirm_password" 
+                      type="password" 
+                      required 
+                      minLength={6}
+                      className={passwordMismatch ? "border-red-500" : ""}
+                    />
+                    {passwordMismatch && <p className="text-xs text-red-500 mt-1">Passwords do not match</p>}
+                  </div>
                   <Button disabled={busy} className="w-full bg-gradient-primary">
                     {role === "landlord" ? "Apply as landlord" : "Create account"}
                   </Button>
