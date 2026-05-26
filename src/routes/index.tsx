@@ -70,7 +70,7 @@ function IndexPage() {
             <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_auto] gap-2">
               <div className="flex rounded-xl bg-muted p-1">
                 <button onClick={() => setPurpose("rent")} className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${purpose==="rent"?"bg-card text-primary shadow-sm":"text-muted-foreground"}`}>Rent</button>
-                <button onClick={() => setPurpose("sale")} className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${purpose==="sale"?"bg-card text-primary shadow-sm":"text-muted-foreground"}`}>Buy</button>
+                <button onClick={() => setPurpose("sale")} className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${purpose==="sale"?"bg-card text-primary shadow-sm":"text-muted-foreground"}`}>Sale</button>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -93,7 +93,7 @@ function IndexPage() {
           <div className="mt-12 grid grid-cols-3 gap-6 max-w-2xl">
             {[
               { n: "500+", l: "Verified listings" },
-              { n: "14", l: "Districts covered" },
+              { n: "28", l: "Districts covered" },
               { n: "100%", l: "Approved landlords" },
             ].map((s) => (
               <div key={s.l}>
@@ -175,7 +175,7 @@ function IndexPage() {
         {[
           { i: ShieldCheck, t: "Verified landlords", d: "Every landlord is reviewed and approved by our team before they can publish." },
           { i: TrendingUp, t: "Premium analytics", d: "Track views and leads. Promote your listings to reach more seekers." },
-          { i: MapPin, t: "Coverage across Malawi", d: "Listings from Lilongwe to Mzuzu, Blantyre to Zomba and beyond." },
+          { i: MapPin, t: "Coverage across Malawi", d: "Listings from all 28 districts across Malawi — from Lilongwe to Zomba, Blantyre to Mzuzu and beyond." },
         ].map((f) => (
           <div key={f.t} className="rounded-2xl bg-card p-6 shadow-card">
             <div className="h-11 w-11 rounded-lg bg-accent text-primary grid place-items-center"><f.i className="h-5 w-5" /></div>
