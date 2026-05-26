@@ -78,6 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Realtime: refresh auth-derived state when admin approves subscription/application/profile
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.id;
+    const ch = supabase
+      .channel("auth-state-rt-" + uid)
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${uid}` }, () => loadAux(uid))
+      .on("postgres_changes", { event: "*", schema: "public", table: "landlord_applications", filter: `user_id=eq.${uid}` }, () => loadAux(uid))
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${uid}` }, () => loadAux(uid))
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${uid}` }, () => loadAux(uid))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
+
   const isAdmin = roles.includes("admin");
   const isLandlord = roles.includes("landlord");
   const isApprovedLandlord = isLandlord && landlordStatus === "approved";
