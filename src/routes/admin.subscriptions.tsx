@@ -27,7 +27,7 @@ async function logAudit(adminId: string | undefined, payload: {
 function Subs() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [reasonFor, setReasonFor] = useState<{ sub: any; kind: "reject" | "cancel" } | null>(null);
+  const [reasonFor, setReasonFor] = useState<{ sub: any; kind: "reject" | "cancel" | "disconnect" } | null>(null);
   const [reason, setReason] = useState("");
 
   const { data } = useQuery({
@@ -39,7 +39,7 @@ function Subs() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = Array.from(new Set((subs ?? []).map((s: any) => s.user_id)));
-      let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
+      let profilesById: Record<string, { full_name: string | null; phone: string | null; role?: string }> = {};
       if (ids.length) {
         const { data: profs } = await supabase
           .from("profiles")
@@ -134,11 +134,68 @@ function Subs() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const disconnect = useMutation({
+    mutationFn: async (s: any) => {
+      const now = new Date();
+      // Mark subscription as expired
+      const { error: subError } = await supabase.from("subscriptions").update({ 
+        status: "expired",
+        expires_at: now.toISOString()
+      }).eq("id", s.id);
+      if (subError) throw subError;
+
+      // Remove approval status from profile
+      const { error: profError } = await supabase.from("profiles").update({
+        approval_status: "pending",
+      }).eq("id", s.user_id);
+      if (profError) throw profError;
+
+      // If landlord, suspend their application
+      if (s.plan === "landlord_monthly") {
+        await supabase.from("landlord_applications").update({
+          status: "suspended",
+        }).eq("user_id", s.user_id);
+      }
+
+      // Notify user
+      await supabase.from("admin_notices").insert({
+        user_id: s.user_id, kind: "warning",
+        title: "Access Disconnected",
+        message: "Your subscription has been disconnected. Please renew your subscription to regain access.",
+        created_by: user?.id ?? null,
+      });
+      await logAudit(user?.id, { action: "disconnect", entity: "subscription", entity_id: s.id, target_user_id: s.user_id });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-subs"] }); toast.success("Subscription disconnected"); setReasonFor(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const decide = useMutation({
-    mutationFn: async ({ sub, kind, reason }: { sub: any; kind: "reject" | "cancel"; reason: string }) => {
+    mutationFn: async ({ sub, kind, reason }: { sub: any; kind: "reject" | "cancel" | "disconnect"; reason: string }) => {
+      const now = new Date();
+      
+      if (kind === "disconnect") {
+        await disconnect.mutateAsync(sub);
+        return;
+      }
+
       const newStatus = kind === "reject" ? "rejected" : "expired";
       const { error } = await supabase.from("subscriptions").update({ status: newStatus }).eq("id", sub.id);
       if (error) throw error;
+
+      // Remove approval from profile if cancelling
+      if (kind === "cancel") {
+        await supabase.from("profiles").update({
+          approval_status: "pending",
+        }).eq("id", sub.user_id);
+
+        if (sub.plan === "landlord_monthly") {
+          await supabase.from("landlord_applications").update({
+            status: "suspended",
+          }).eq("user_id", sub.user_id);
+        }
+      }
+
       await supabase.from("admin_notices").insert({
         user_id: sub.user_id, kind: "warning",
         title: kind === "reject" ? "Subscription request declined" : "Subscription cancelled",
@@ -175,7 +232,7 @@ function Subs() {
         {s.status === "active" && <>
           <Button size="sm" className="bg-gradient-primary" onClick={() => renew.mutate(s)}>Renew</Button>
           <Button size="sm" variant="outline" onClick={() => remind.mutate(s)}>Remind</Button>
-          <Button size="sm" variant="destructive" onClick={() => { setReasonFor({ sub: s, kind: "cancel" }); setReason(""); }}>Cancel</Button>
+          <Button size="sm" variant="destructive" onClick={() => { setReasonFor({ sub: s, kind: "disconnect" }); setReason(""); }}>Disconnect</Button>
         </>}
         {(s.status === "expired" || s.status === "rejected") && <>
           <Button size="sm" className="bg-gradient-primary" onClick={() => renew.mutate(s)}>Renew</Button>
@@ -229,17 +286,29 @@ function Subs() {
       <Dialog open={!!reasonFor} onOpenChange={(o) => !o && setReasonFor(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{reasonFor?.kind === "reject" ? "Deny payment request" : "Cancel subscription"}</DialogTitle>
-            <DialogDescription>Provide a reason. The user will be notified.</DialogDescription>
+            <DialogTitle>
+              {reasonFor?.kind === "reject" ? "Deny payment request" : reasonFor?.kind === "disconnect" ? "Disconnect subscription" : "Cancel subscription"}
+            </DialogTitle>
+            <DialogDescription>
+              {reasonFor?.kind === "disconnect" ? "This will disconnect the user's access and suspend their account." : "Provide a reason. The user will be notified."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Reason</Label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Payment not received, incorrect reference…" rows={4} />
+            {reasonFor?.kind !== "disconnect" && (
+              <>
+                <Label>Reason</Label>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Payment not received, incorrect reference…" rows={4} />
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReasonFor(null)}>Cancel</Button>
-            <Button variant="destructive" disabled={!reason.trim()} onClick={() => reasonFor && decide.mutate({ sub: reasonFor.sub, kind: reasonFor.kind, reason: reason.trim() })}>
-              Confirm
+            <Button 
+              variant="destructive" 
+              disabled={reasonFor?.kind === "disconnect" ? false : !reason.trim()} 
+              onClick={() => reasonFor && decide.mutate({ sub: reasonFor.sub, kind: reasonFor.kind, reason: reason.trim() })}
+            >
+              {reasonFor?.kind === "reject" ? "Deny" : reasonFor?.kind === "disconnect" ? "Disconnect" : "Cancel"}
             </Button>
           </DialogFooter>
         </DialogContent>
