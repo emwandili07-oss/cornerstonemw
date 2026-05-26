@@ -82,6 +82,12 @@ function Subs() {
       await supabase.from("profiles").update({
         approval_status: "approved", approved_at: now.toISOString(), approved_by: user?.id ?? null,
       }).eq("id", s.user_id);
+      // If this is a landlord plan, also auto-approve the landlord application so uploads unlock
+      if (s.plan === "landlord_monthly") {
+        await supabase.from("landlord_applications").update({
+          status: "approved", reviewed_at: now.toISOString(), reviewed_by: user?.id ?? null,
+        }).eq("user_id", s.user_id);
+      }
       await supabase.from("admin_notices").insert({
         user_id: s.user_id, kind: "approval",
         title: "Subscription approved",
